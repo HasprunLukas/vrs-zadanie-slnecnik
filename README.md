@@ -1,0 +1,1 @@
+# vrs-zadanie-slnecnik
