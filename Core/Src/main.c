@@ -21,6 +21,8 @@
 #include "tim.h"
 #include "gpio.h"
 
+#include "../../servo_driver/ll_servo.h"
+
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
 
@@ -41,6 +43,17 @@
 /* USER CODE END PM */
 
 /* Private variables ---------------------------------------------------------*/
+TIM_HandleTypeDef htim1;
+
+//UART_HandleTYpeDef huart1;
+
+ll_servo_t servo_1;
+uint8_t RxBuff[12];
+uint8_t RxByte;
+uint8_t RxLen = 0;
+
+USART_TypeDef huart1;
+
 
 /* USER CODE BEGIN PV */
 
@@ -48,6 +61,9 @@
 
 /* Private function prototypes -----------------------------------------------*/
 void SystemClock_Config(void);
+void MX_GPIO_Init(void);
+void MX_USART1_UART_Init(void);
+void MX_TIM1_Init(void);
 /* USER CODE BEGIN PFP */
 
 /* USER CODE END PFP */
@@ -70,14 +86,7 @@ int main(void)
   /* MCU Configuration--------------------------------------------------------*/
 
   /* Reset of all peripherals, Initializes the Flash interface and the Systick. */
-  LL_APB2_GRP1_EnableClock(LL_APB2_GRP1_PERIPH_SYSCFG);
-  LL_APB1_GRP1_EnableClock(LL_APB1_GRP1_PERIPH_PWR);
-
-  /* System interrupt init*/
-  NVIC_SetPriorityGrouping(NVIC_PRIORITYGROUP_4);
-
-  /* SysTick_IRQn interrupt configuration */
-  NVIC_SetPriority(SysTick_IRQn, NVIC_EncodePriority(NVIC_GetPriorityGrouping(),15, 0));
+  HAL_Init();
 
   /* USER CODE BEGIN Init */
 
@@ -93,8 +102,15 @@ int main(void)
   /* Initialize all configured peripherals */
   MX_GPIO_Init();
   MX_TIM2_Init();
+  MX_TIM1_Init();
   /* USER CODE BEGIN 2 */
+  // LL_USART_EnableIT_RXNE(USART1);
+  servo_1.slave_tim = TIM1;
+  servo_1.channel = LL_TIM_CHANNEL_CH1;
 
+  servo_1.angle_min = 1850;
+  servo_1.angle_max = 8050;
+  servoMotorInit(&servo_1);
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -136,11 +152,149 @@ void SystemClock_Config(void)
   {
 
   }
-  LL_Init1msTick(8000000);
   LL_SetSystemCoreClock(8000000);
+
+   /* Update the time base */
+  if (HAL_InitTick (TICK_INT_PRIORITY) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  LL_RCC_SetTIMClockSource(LL_RCC_TIM1_CLKSOURCE_PCLK2);
+}
+
+/**
+  * @brief TIM1 Initialization Function
+  * @param None
+  * @retval None
+  */
+void MX_TIM1_Init(void)
+{
+
+  /* USER CODE BEGIN TIM1_Init 0 */
+
+  /* USER CODE END TIM1_Init 0 */
+
+  TIM_ClockConfigTypeDef sClockSourceConfig = {0};
+  TIM_MasterConfigTypeDef sMasterConfig = {0};
+
+  /* USER CODE BEGIN TIM1_Init 1 */
+
+  /* USER CODE END TIM1_Init 1 */
+  htim1.Instance = TIM1;
+  htim1.Init.Prescaler = 19;
+  htim1.Init.CounterMode = TIM_COUNTERMODE_UP;
+  htim1.Init.Period = 63999;
+  htim1.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
+  htim1.Init.RepetitionCounter = 0;
+  htim1.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
+  if (HAL_TIM_Base_Init(&htim1) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  sClockSourceConfig.ClockSource = TIM_CLOCKSOURCE_INTERNAL;
+  if (HAL_TIM_ConfigClockSource(&htim1, &sClockSourceConfig) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  sMasterConfig.MasterOutputTrigger = TIM_TRGO_UPDATE;
+  sMasterConfig.MasterOutputTrigger2 = TIM_TRGO2_UPDATE;
+  sMasterConfig.MasterSlaveMode = TIM_MASTERSLAVEMODE_DISABLE;
+  if (HAL_TIMEx_MasterConfigSynchronization(&htim1, &sMasterConfig) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /* USER CODE BEGIN TIM1_Init 2 */
+
+  /* USER CODE END TIM1_Init 2 */
+
 }
 
 /* USER CODE BEGIN 4 */
+/*
+void Execute_CMD(void)
+{
+	const char s[2] = " ";
+	char *val[8];
+	char *p = strtok((char*)RxBuff, s);
+	uint8_t i = 0;
+	while (p != NULL)
+	{
+		val[i++] = p;
+		p = strtok(NULL, s);
+	}
+
+	if (strcmp(val[0], "ROT") == 0)
+	{
+		servo_t tmp = (strcmp(val[1], "S1") == 0) ? S1 : S2;
+		Servo_SetAngle(&tmp, atoi(val[2]));
+	}
+
+	if (strcmp(val[0], "CAL") == 0)
+	{
+		servo_t tmp = (strcmp(val[1], "S1") == 0) ? S1 : S2;
+		Servo_Calibrate(&tmp, atoi(val[2]));
+	}
+}
+*/
+
+//void MX_GPIO_Init(void)
+//{
+//
+//  /* GPIO Ports Clock Enable */
+//  __HAL_RCC_GPIOA_CLK_ENABLE();
+//
+//}
+
+void USART_Rx_Callback(void)
+{
+	uint8_t pTemp = LL_USART_ReceiveData8(USART1);
+	if (pTemp != 0xa)	// Newline
+	{
+		if (pTemp != 0xd)	// CR
+		{
+			RxBuff[RxLen] = pTemp;
+			RxLen++;
+		}
+	}else{
+		RxLen = 0;
+		Execute_CMD();
+		memset(RxBuff, '\0', sizeof(RxBuff));
+	}
+}
+
+/**
+  * @brief USART1 Initialization Function
+  * @param None
+  * @retval None
+  */
+void MX_USART1_UART_Init(void)
+{
+
+  /* USER CODE BEGIN USART1_Init 0 */
+
+  /* USER CODE END USART1_Init 0 */
+
+  /* USER CODE BEGIN USART1_Init 1 */
+
+  /* USER CODE END USART1_Init 1 *//*
+  huart1.Instance = USART1;
+  huart1.Init.BaudRate = 115200;
+  huart1.Init.WordLength = UART_WORDLENGTH_8B;
+  huart1.Init.StopBits = UART_STOPBITS_1;
+  huart1.Init.Parity = UART_PARITY_NONE;
+  huart1.Init.Mode = UART_MODE_TX_RX;
+  huart1.Init.HwFlowCtl = UART_HWCONTROL_NONE;
+  huart1.Init.OverSampling = UART_OVERSAMPLING_16;
+  huart1.Init.OneBitSampling = UART_ONE_BIT_SAMPLE_DISABLE;
+  huart1.AdvancedInit.AdvFeatureInit = UART_ADVFEATURE_NO_INIT;
+  if (HAL_UART_Init(&huart1) != HAL_OK)
+  {
+    Error_Handler();
+  }*/
+  /* USER CODE BEGIN USART1_Init 2 */
+
+  /* USER CODE END USART1_Init 2 */
+}
 
 /* USER CODE END 4 */
 

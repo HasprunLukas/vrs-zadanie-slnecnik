@@ -22,7 +22,7 @@ void Start_Timer(TIM_TypeDef *TIMx, uint32_t Channels)
 	}
 }
 
-void ServoMotorInit(ll_servo_t *servo)
+void servoMotorInit(ll_servo_t *servo)
 {
     servo->angle_rng = (servo->angle_rng) ? servo->angle_rng : 180;
     uint16_t arr = LL_TIM_GetAutoReload(servo->slave_tim);
