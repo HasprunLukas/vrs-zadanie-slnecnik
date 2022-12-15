@@ -41,25 +41,13 @@
 /* USER CODE END PM */
 
 /* Private variables ---------------------------------------------------------*/
-TIM_HandleTypeDef htim1;
 
-//UART_HandleTYpeDef huart1;
-
-ll_servo_t servo_1;
-uint8_t RxBuff[12];
-uint8_t RxByte;
-uint8_t RxLen = 0;
-
-USART_TypeDef huart1;
 /* USER CODE BEGIN PV */
 
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
 void SystemClock_Config(void);
-void MX_GPIO_Init(void);
-void MX_USART1_UART_Init(void);
-void MX_TIM1_Init(void);
 /* USER CODE BEGIN PFP */
 
 /* USER CODE END PFP */
@@ -82,7 +70,14 @@ int main(void)
   /* MCU Configuration--------------------------------------------------------*/
 
   /* Reset of all peripherals, Initializes the Flash interface and the Systick. */
-  HAL_Init();
+  LL_APB2_GRP1_EnableClock(LL_APB2_GRP1_PERIPH_SYSCFG);
+  LL_APB1_GRP1_EnableClock(LL_APB1_GRP1_PERIPH_PWR);
+
+  /* System interrupt init*/
+  NVIC_SetPriorityGrouping(NVIC_PRIORITYGROUP_4);
+
+  /* SysTick_IRQn interrupt configuration */
+  NVIC_SetPriority(SysTick_IRQn, NVIC_EncodePriority(NVIC_GetPriorityGrouping(),15, 0));
 
   /* USER CODE BEGIN Init */
 
@@ -98,7 +93,6 @@ int main(void)
   /* Initialize all configured peripherals */
   MX_GPIO_Init();
   MX_TIM2_Init();
-  MX_TIM1_Init();
   /* USER CODE BEGIN 2 */
   // LL_USART_EnableIT_RXNE(USART1);
   servo_1.slave_tim = TIM1;
@@ -148,14 +142,8 @@ void SystemClock_Config(void)
   {
 
   }
+  LL_Init1msTick(8000000);
   LL_SetSystemCoreClock(8000000);
-
-   /* Update the time base */
-  if (HAL_InitTick (TICK_INT_PRIORITY) != HAL_OK)
-  {
-    Error_Handler();
-  }
-  LL_RCC_SetTIMClockSource(LL_RCC_TIM1_CLKSOURCE_PCLK2);
 }
 
 /* USER CODE BEGIN 4 */
