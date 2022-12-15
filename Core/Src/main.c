@@ -43,13 +43,24 @@
 /* Private variables ---------------------------------------------------------*/
 
 /* USER CODE BEGIN PV */
+TIM_HandleTypeDef htim1;
 
+//UART_HandleTYpeDef huart1;
+
+ll_servo_t servo_1;
+uint8_t RxBuff[12];
+uint8_t RxByte;
+uint8_t RxLen = 0;
+
+USART_TypeDef huart1;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
 void SystemClock_Config(void);
 /* USER CODE BEGIN PFP */
-
+void MX_GPIO_Init(void);
+void MX_USART1_UART_Init(void);
+void MX_TIM1_Init(void);
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
