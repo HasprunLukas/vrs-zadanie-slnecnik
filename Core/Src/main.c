@@ -51,6 +51,8 @@ ll_servo_t servo_1;
 uint8_t RxBuff[12];
 uint8_t RxByte;
 uint8_t RxLen = 0;
+uint8_t Mode = 1;
+uint8_t EnginePosition = 0;
 
 USART_TypeDef huart1;
 /* USER CODE END PV */
@@ -61,6 +63,7 @@ void SystemClock_Config(void);
 void MX_GPIO_Init(void);
 void MX_USART1_UART_Init(void);
 void MX_TIM1_Init(void);
+uint8_t Light_Scanner(uint8_t mode_of_scanning, uint8_t engine_position);
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
@@ -118,6 +121,16 @@ int main(void)
   /* USER CODE BEGIN WHILE */
   while (1)
   {
+
+	  EnginePosition = Light_Scanner(Mode, EnginePosition); // Obtaining position for engine to be move to.
+
+	  engine_position_set = EnginePosition; // Setting engine to required position.
+
+
+	  Mode = 2; // Changing mode to 2 after initial global measuring.
+	  LL_mDelay(60000); // Wait time between measurements 60 seconds.
+
+
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
@@ -243,6 +256,109 @@ void MX_USART1_UART_Init(void)
 
   /* USER CODE END USART1_Init 2 */
 }
+
+
+
+/**
+  * @brief Light intensity scanning Function
+  * @param uint8_t mode_of_scanning (type of scanning procedure 1 = full scan, 2 = short scan for adjustment of position),
+  *     	uint8_t engine_position	(current position of the engine in degrees)
+  * @retval uint8_t position of strongest light intensity
+  */
+
+// engine_position_set is placeholder name for variable of engine input.
+// measured_light is placeholder name for variable of sensor output as strength of measured light.
+uint8_t Light_Scanner(uint8_t mode_of_scanning, uint8_t engine_position)
+{
+
+	uint16_t light_intensity = 0;
+	uint8_t light_intensity_position = 0;
+
+	if (mode_of_scanning == 1)
+	{
+		engine_position_set = 0; // Setting engine to position 0 degrees.
+		LL_mDelay(3000);
+
+		for (int degree = 0; degree <= 120; degree = degree + 5)
+		{
+			engine_position_set = degree;
+			LL_mDelay(2000);
+
+			if (light_intensity < measured_light) // Saving position with highest measured light intensity.
+			{
+				light_intensity = measured_light;
+				light_intensity_position = degree;
+			}
+		}
+
+		return light_intensity_position;
+	}
+	else if (mode_of_scanning == 2)
+	{
+		if (engine_position < 5) // Condition for engine to not move below set minimum 0 degrees.
+		{
+			engine_position_set = 0; // Measuring light intensity 5 degrees back minimum 0.
+			LL_mDelay(2000);
+
+			light_intensity = measured_light;
+			light_intensity_position = 0;
+
+			engine_position_set = engine_position + 5; // Measuring light intensity 5 degrees forward.
+			LL_mDelay(4000);
+
+			if (light_intensity < measured_light)
+			{
+				light_intensity = measured_light;
+				light_intensity_position = engine_position + 5;
+			}
+
+			return light_intensity_position;
+		}
+		else if (engine_position > 115) // Condition for engine to not move above set maximum 120 degrees.
+		{
+			engine_position_set = engine_position - 5; // Measuring light intensity 5 degrees back.
+			LL_mDelay(2000);
+
+			light_intensity = measured_light;
+			light_intensity_position = engine_position - 5;
+
+			engine_position_set = 120; // Measuring light intensity 5 degrees forward maximum 120.
+			LL_mDelay(4000);
+
+			if (light_intensity < measured_light)
+			{
+				light_intensity = measured_light;
+				light_intensity_position = 120;
+			}
+
+			return light_intensity_position;
+		}
+		else // Condition for engine to be able to move in between 0 - 120 degrees.
+		{
+			engine_position_set = engine_position - 5; // Measuring light intensity 5 degrees back.
+			LL_mDelay(2000);
+
+			light_intensity = measured_light;
+			light_intensity_position = engine_position - 5;
+
+			engine_position_set = engine_position + 5; // Measuring light intensity 5 degrees forward.
+			LL_mDelay(4000);
+
+			if (light_intensity < measured_light)
+			{
+				light_intensity = measured_light;
+				light_intensity_position = engine_position + 5;
+			}
+
+			return light_intensity_position;
+		}
+	}
+	else // If parameter mode_of_scanning haven't accepted values 1 or 2 position of engine stay unchanged.
+	{
+		return engine_position;
+	}
+}
+
 
 /* USER CODE END 4 */
 
