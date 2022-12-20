@@ -1,20 +1,20 @@
 /* USER CODE BEGIN Header */
 /**
-  ******************************************************************************
-  * @file           : main.c
-  * @brief          : Main program body
-  ******************************************************************************
-  * @attention
-  *
-  * Copyright (c) 2022 STMicroelectronics.
-  * All rights reserved.
-  *
-  * This software is licensed under terms that can be found in the LICENSE file
-  * in the root directory of this software component.
-  * If no LICENSE file comes with this software, it is provided AS-IS.
-  *
-  ******************************************************************************
-  */
+ ******************************************************************************
+ * @file           : main.c
+ * @brief          : Main program body
+ ******************************************************************************
+ * @attention
+ *
+ * Copyright (c) 2022 STMicroelectronics.
+ * All rights reserved.
+ *
+ * This software is licensed under terms that can be found in the LICENSE file
+ * in the root directory of this software component.
+ * If no LICENSE file comes with this software, it is provided AS-IS.
+ *
+ ******************************************************************************
+ */
 /* USER CODE END Header */
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
@@ -46,28 +46,22 @@
 /* Private variables ---------------------------------------------------------*/
 
 /* USER CODE BEGIN PV */
-//TIM_HandleTypeDef htim1;
 
-//UART_HandleTYpeDef huart1;
-
-//ll_servo_t servo_1;
-//uint8_t RxBuff[12];
-//uint8_t RxByte;
-//uint8_t RxLen = 0;
-//uint8_t Mode = 1;
-//uint8_t EnginePosition = 0;
+// uint8_t Mode = 1;
+// uint8_t EnginePosition = 0;
 int data;
+int angle = 0;
 
-//USART_TypeDef huart1;
+// USART_TypeDef huart1;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
 void SystemClock_Config(void);
 /* USER CODE BEGIN PFP */
 void MX_GPIO_Init(void);
-void MX_USART1_UART_Init(void);
-void MX_TIM1_Init(void);
-//uint8_t Light_Scanner(uint8_t mode_of_scanning, uint8_t engine_position);
+void MX_TIM2_Init(void);
+void servoRotateToPosition(int angle);
+// uint8_t Light_Scanner(uint8_t mode_of_scanning, uint8_t engine_position);
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
@@ -88,14 +82,7 @@ int main(void)
   /* MCU Configuration--------------------------------------------------------*/
 
   /* Reset of all peripherals, Initializes the Flash interface and the Systick. */
-  LL_APB2_GRP1_EnableClock(LL_APB2_GRP1_PERIPH_SYSCFG);
-  LL_APB1_GRP1_EnableClock(LL_APB1_GRP1_PERIPH_PWR);
-
-  /* System interrupt init*/
-  NVIC_SetPriorityGrouping(NVIC_PRIORITYGROUP_4);
-
-  /* SysTick_IRQn interrupt configuration */
-  NVIC_SetPriority(SysTick_IRQn, NVIC_EncodePriority(NVIC_GetPriorityGrouping(),15, 0));
+  HAL_Init();
 
   /* USER CODE BEGIN Init */
 
@@ -113,13 +100,7 @@ int main(void)
   MX_TIM2_Init();
   MX_I2C1_Init();
   /* USER CODE BEGIN 2 */
-  // LL_USART_EnableIT_RXNE(USART1);
-//  servo_1.slave_tim = TIM1;
-//  servo_1.channel = LL_TIM_CHANNEL_CH1;
-//
-//  servo_1.angle_min = 1850;
-//  servo_1.angle_max = 8050;
-//  servoMotorInit(&servo_1);
+  HAL_TIM_PWM_Start(&htim2, TIM_CHANNEL_1);
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -127,17 +108,17 @@ int main(void)
   while (1)
   {
 
-//	  EnginePosition = Light_Scanner(Mode, EnginePosition); // Obtaining position for engine to be move to.
+    //	  EnginePosition = Light_Scanner(Mode, EnginePosition); // Obtaining position for engine to be move to.
 
-//	  engine_position_set = EnginePosition; // Setting engine to required position.
+    //	  engine_position_set = EnginePosition; // Setting engine to required position.
 
-	  vd6283tx_init();
-	  data = vd6283tx_get_als_ch2();
+    vd6283tx_init();
+    data = vd6283tx_get_als_ch2();
 
-	  LL_mDelay(10);
-//	  Mode = 2; // Changing mode to 2 after initial global measuring.
-//	  LL_mDelay(60000); // Wait time between measurements 60 seconds.
-
+    servoRotateToPosition(115);
+    LL_mDelay(10);
+    //	  Mode = 2; // Changing mode to 2 after initial global measuring.
+    //	  LL_mDelay(60000); // Wait time between measurements 60 seconds.
 
     /* USER CODE END WHILE */
 
@@ -174,177 +155,148 @@ void SystemClock_Config(void)
   {
 
   }
-  LL_Init1msTick(8000000);
   LL_SetSystemCoreClock(8000000);
+
+   /* Update the time base */
+  if (HAL_InitTick (TICK_INT_PRIORITY) != HAL_OK)
+  {
+    Error_Handler();
+  }
   LL_RCC_SetI2CClockSource(LL_RCC_I2C1_CLKSOURCE_HSI);
 }
 
 /* USER CODE BEGIN 4 */
 /*
-*/
-
-//void MX_GPIO_Init(void)
-//{
-//
-//  /* GPIO Ports Clock Enable */
-//  __HAL_RCC_GPIOA_CLK_ENABLE();
-//
-//}
-
-//void USART_Rx_Callback(void)
-//{
-//	uint8_t pTemp = LL_USART_ReceiveData8(USART1);
-//	if (pTemp != 0xa)	// Newline
-//	{
-//		if (pTemp != 0xd)	// CR
-//		{
-//			RxBuff[RxLen] = pTemp;
-//			RxLen++;
-//		}
-//	}else{
-//		RxLen = 0;
-//		Execute_CMD();
-//		memset(RxBuff, '\0', sizeof(RxBuff));
-//	}
-//}
+ */
 
 /**
-  * @brief USART1 Initialization Function
-  * @param None
-  * @retval None
-  */
-void MX_USART1_UART_Init(void)
+ * @brief Light intensity scanning Function
+ * @param uint8_t mode_of_scanning (type of scanning procedure 1 = full scan, 2 = short scan for adjustment of position),
+ *     	uint8_t engine_position	(current position of the engine in degrees)
+ * @retval uint8_t position of strongest light intensity
+ */
+
+//engine_position_set is placeholder name for variable of engine input.
+//measured_light is placeholder name for variable of sensor output as strength of measured light.
+/*
+uint8_t Light_Scanner(uint8_t mode_of_scanning, uint8_t engine_position)
 {
 
-  /* USER CODE BEGIN USART1_Init 0 */
+  uint16_t light_intensity = 0;
+  uint8_t light_intensity_position = 0;
 
-  /* USER CODE END USART1_Init 0 */
-
-  /* USER CODE BEGIN USART1_Init 1 */
-
-  /* USER CODE END USART1_Init 1 *//*
-  huart1.Instance = USART1;
-  huart1.Init.BaudRate = 115200;
-  huart1.Init.WordLength = UART_WORDLENGTH_8B;
-  huart1.Init.StopBits = UART_STOPBITS_1;
-  huart1.Init.Parity = UART_PARITY_NONE;
-  huart1.Init.Mode = UART_MODE_TX_RX;
-  huart1.Init.HwFlowCtl = UART_HWCONTROL_NONE;
-  huart1.Init.OverSampling = UART_OVERSAMPLING_16;
-  huart1.Init.OneBitSampling = UART_ONE_BIT_SAMPLE_DISABLE;
-  huart1.AdvancedInit.AdvFeatureInit = UART_ADVFEATURE_NO_INIT;
-  if (HAL_UART_Init(&huart1) != HAL_OK)
+  if (mode_of_scanning == 1)
   {
-    Error_Handler();
-  }*/
-  /* USER CODE BEGIN USART1_Init 2 */
+    angle = 0;
+    LL_mDelay(3000);
 
-  /* USER CODE END USART1_Init 2 */
+    for (int degree = 0; degree <= 120; degree = degree + 5)
+    {
+      servoRotateToPosition(degree);
+      LL_mDelay(2000);
+
+      if (light_intensity < measured_light) // Saving position with highest measured light intensity.
+      {
+        light_intensity = measured_light;
+        light_intensity_position = degree;
+        angle = degree;
+      }
+    }
+
+    return light_intensity_position;
+  }
+  else if (mode_of_scanning == 2)
+  {
+    if (angle < 5) // Condition for engine to not move below set minimum 0 degrees.
+    {
+      angle = 0; // Measuring light intensity 5 degrees back minimum 0.
+      servoRotateToPosition(angle);
+      LL_mDelay(2000);
+
+      light_intensity = measured_light;
+      light_intensity_position = 0;
+
+      angle = angle + 10; // Measuring light intensity 5 degrees forward.
+      servoRotateToPosition(angle);
+      LL_mDelay(4000);
+
+      if (light_intensity < measured_light)
+      {
+        light_intensity = measured_light;
+        light_intensity_position = angle;
+      }
+
+      return light_intensity_position;
+    }
+    else if (angle > 115) // Condition for engine to not move above set maximum 120 degrees.
+    {
+      angle = angle - 5; // Measuring light intensity 5 degrees back.
+      servoRotateToPosition(angle);
+      LL_mDelay(2000);
+
+      light_intensity = measured_light;
+      light_intensity_position = angle - 5;
+
+      angle = 120; // Measuring light intensity 5 degrees forward maximum 120.
+      servoRotateToPosition(angle);
+      LL_mDelay(4000);
+
+      if (light_intensity < measured_light)
+      {
+        light_intensity = measured_light;
+        light_intensity_position = 120;
+      }
+
+      return light_intensity_position;
+    }
+    else // Condition for engine to be able to move in between 0 - 120 degrees.
+    {
+      angle = angle - 5; // Measuring light intensity 5 degrees back.
+      servoRotateToPosition(angle);
+      LL_mDelay(2000);
+
+      light_intensity = measured_light;
+      light_intensity_position = angle - 5;
+
+      angle = angle + 5; // Measuring light intensity 5 degrees forward.
+      servoRotateToPosition(angle);
+      LL_mDelay(4000);
+
+      if (light_intensity < measured_light)
+      {
+        light_intensity = measured_light;
+        light_intensity_position = angle + 5;
+      }
+
+      return light_intensity_position;
+    }
+  }
+  else // If parameter mode_of_scanning haven't accepted values 1 or 2 position of engine stay unchanged.
+  {
+    return angle;
+  }
 }
+*/
 
-
-
-/**
-  * @brief Light intensity scanning Function
-  * @param uint8_t mode_of_scanning (type of scanning procedure 1 = full scan, 2 = short scan for adjustment of position),
-  *     	uint8_t engine_position	(current position of the engine in degrees)
-  * @retval uint8_t position of strongest light intensity
-  */
-
-// engine_position_set is placeholder name for variable of engine input.
-// measured_light is placeholder name for variable of sensor output as strength of measured light.
-//uint8_t Light_Scanner(uint8_t mode_of_scanning, uint8_t engine_position)
-//{
-//
-//	uint16_t light_intensity = 0;
-//	uint8_t light_intensity_position = 0;
-//
-//	if (mode_of_scanning == 1)
-//	{
-//		// TODO kuk komentar vyssie
-//		engine_position_set = 0; // Setting engine to position 0 degrees.
-//		LL_mDelay(3000);
-//
-//		for (int degree = 0; degree <= 120; degree = degree + 5)
-//		{
-//			engine_position_set = degree;
-//			LL_mDelay(2000);
-//
-//			if (light_intensity < measured_light) // Saving position with highest measured light intensity.
-//			{
-//				light_intensity = measured_light;
-//				light_intensity_position = degree;
-//			}
-//		}
-//
-//		return light_intensity_position;
-//	}
-//	else if (mode_of_scanning == 2)
-//	{
-//		if (engine_position < 5) // Condition for engine to not move below set minimum 0 degrees.
-//		{
-//			engine_position_set = 0; // Measuring light intensity 5 degrees back minimum 0.
-//			LL_mDelay(2000);
-//
-//			light_intensity = measured_light;
-//			light_intensity_position = 0;
-//
-//			engine_position_set = engine_position + 5; // Measuring light intensity 5 degrees forward.
-//			LL_mDelay(4000);
-//
-//			if (light_intensity < measured_light)
-//			{
-//				light_intensity = measured_light;
-//				light_intensity_position = engine_position + 5;
-//			}
-//
-//			return light_intensity_position;
-//		}
-//		else if (engine_position > 115) // Condition for engine to not move above set maximum 120 degrees.
-//		{
-//			engine_position_set = engine_position - 5; // Measuring light intensity 5 degrees back.
-//			LL_mDelay(2000);
-//
-//			light_intensity = measured_light;
-//			light_intensity_position = engine_position - 5;
-//
-//			engine_position_set = 120; // Measuring light intensity 5 degrees forward maximum 120.
-//			LL_mDelay(4000);
-//
-//			if (light_intensity < measured_light)
-//			{
-//				light_intensity = measured_light;
-//				light_intensity_position = 120;
-//			}
-//
-//			return light_intensity_position;
-//		}
-//		else // Condition for engine to be able to move in between 0 - 120 degrees.
-//		{
-//			engine_position_set = engine_position - 5; // Measuring light intensity 5 degrees back.
-//			LL_mDelay(2000);
-//
-//			light_intensity = measured_light;
-//			light_intensity_position = engine_position - 5;
-//
-//			engine_position_set = engine_position + 5; // Measuring light intensity 5 degrees forward.
-//			LL_mDelay(4000);
-//
-//			if (light_intensity < measured_light)
-//			{
-//				light_intensity = measured_light;
-//				light_intensity_position = engine_position + 5;
-//			}
-//
-//			return light_intensity_position;
-//		}
-//	}
-//	else // If parameter mode_of_scanning haven't accepted values 1 or 2 position of engine stay unchanged.
-//	{
-//		return engine_position;
-//	}
-//}
-
+void servoRotateToPosition(int angle)
+{
+  if (angle < 0)
+  {
+    __HAL_TIM_SET_COMPARE(&htim2, TIM_CHANNEL_1, 400);
+  }
+  else if (angle == 0)
+  {
+    __HAL_TIM_SET_COMPARE(&htim2, TIM_CHANNEL_1, 400); // 0deg
+  }
+  else if (angle > 0 && angle <= 120)
+  {
+    __HAL_TIM_SET_COMPARE(&htim2, TIM_CHANNEL_1, angle * 5.9 + 400);
+  }
+  else
+  {
+    __HAL_TIM_SET_COMPARE(&htim2, TIM_CHANNEL_1, 1050);
+  }
+}
 
 /* USER CODE END 4 */
 
