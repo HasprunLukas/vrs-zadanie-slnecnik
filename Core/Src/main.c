@@ -47,8 +47,8 @@
 
 /* USER CODE BEGIN PV */
 
-// uint8_t Mode = 1;
-// uint8_t EnginePosition = 0;
+uint8_t Mode = 1;
+uint8_t EnginePosition = 0;
 int data;
 int angle = 0;
 
@@ -61,7 +61,7 @@ void SystemClock_Config(void);
 void MX_GPIO_Init(void);
 void MX_TIM2_Init(void);
 void servoRotateToPosition(int angle);
-// uint8_t Light_Scanner(uint8_t mode_of_scanning, uint8_t engine_position);
+uint8_t Light_Scanner(uint8_t mode_of_scanning, uint8_t engine_position);
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
@@ -108,17 +108,10 @@ int main(void)
   while (1)
   {
 
-    //	  EnginePosition = Light_Scanner(Mode, EnginePosition); // Obtaining position for engine to be move to.
-
-    //	  engine_position_set = EnginePosition; // Setting engine to required position.
-
-    vd6283tx_init();
-    data = vd6283tx_get_als_ch2();
-
-    servoRotateToPosition(115);
-    LL_mDelay(10);
-    //	  Mode = 2; // Changing mode to 2 after initial global measuring.
-    //	  LL_mDelay(60000); // Wait time between measurements 60 seconds.
+    EnginePosition = Light_Scanner(Mode, EnginePosition); // Obtaining position for engine to be move to.
+    servoRotateToPosition(EnginePosition); // Setting engine to required position.
+    Mode = 2; // Changing mode to 2 after initial global measuring.
+    LL_mDelay(15000); // Wait time between measurements 15 seconds.
 
     /* USER CODE END WHILE */
 
@@ -176,24 +169,22 @@ void SystemClock_Config(void)
  * @retval uint8_t position of strongest light intensity
  */
 
-//engine_position_set is placeholder name for variable of engine input.
-//measured_light is placeholder name for variable of sensor output as strength of measured light.
-/*
 uint8_t Light_Scanner(uint8_t mode_of_scanning, uint8_t engine_position)
 {
 
-  uint16_t light_intensity = 0;
+  int light_intensity = 0;
   uint8_t light_intensity_position = 0;
+  int measured_light = 0;
 
   if (mode_of_scanning == 1)
   {
     angle = 0;
-    LL_mDelay(3000);
 
-    for (int degree = 0; degree <= 120; degree = degree + 5)
+    for (int degree = 0; degree <= 180; degree = degree + 5)
     {
       servoRotateToPosition(degree);
-      LL_mDelay(2000);
+	  vd6283tx_init();
+	  measured_light = vd6283tx_get_als_ch2();
 
       if (light_intensity < measured_light) // Saving position with highest measured light intensity.
       {
@@ -207,18 +198,43 @@ uint8_t Light_Scanner(uint8_t mode_of_scanning, uint8_t engine_position)
   }
   else if (mode_of_scanning == 2)
   {
-    if (angle < 5) // Condition for engine to not move below set minimum 0 degrees.
+    if (engine_position < 5) // Condition for engine to not move below set minimum 0 degrees.
     {
-      angle = 0; // Measuring light intensity 5 degrees back minimum 0.
+      angle = 0; // Measuring light intensity at 0 degrees
       servoRotateToPosition(angle);
-      LL_mDelay(2000);
+      vd6283tx_init();
+	  measured_light = vd6283tx_get_als_ch2();
 
       light_intensity = measured_light;
       light_intensity_position = 0;
 
-      angle = angle + 10; // Measuring light intensity 5 degrees forward.
+      angle = angle + 5; // Measuring light intensity at 5 degrees
       servoRotateToPosition(angle);
-      LL_mDelay(4000);
+      vd6283tx_init();
+	  measured_light = vd6283tx_get_als_ch2();
+
+	  if (light_intensity < measured_light)
+	  {
+		  light_intensity = measured_light;
+		  light_intensity_position = angle;
+	  }
+
+      return light_intensity_position;
+    }
+    else if (angle > 180) // Condition for engine to not move above set maximum 180 degrees.
+    {
+      angle = 180; // Measuring light intensity at 180 degrees
+      servoRotateToPosition(angle);
+
+      vd6283tx_init();
+	  measured_light = vd6283tx_get_als_ch2();
+	  light_intensity = measured_light;
+	  light_intensity_position = angle;
+
+      angle = angle - 5; // Measuring light intensity at 175 degrees
+      servoRotateToPosition(angle);
+      vd6283tx_init();
+	  measured_light = vd6283tx_get_als_ch2();
 
       if (light_intensity < measured_light)
       {
@@ -228,45 +244,37 @@ uint8_t Light_Scanner(uint8_t mode_of_scanning, uint8_t engine_position)
 
       return light_intensity_position;
     }
-    else if (angle > 115) // Condition for engine to not move above set maximum 120 degrees.
+    else // Condition for engine to be able to move in between 0 - 180 degrees.
     {
       angle = angle - 5; // Measuring light intensity 5 degrees back.
       servoRotateToPosition(angle);
-      LL_mDelay(2000);
+      vd6283tx_init();
+	  measured_light = vd6283tx_get_als_ch2();
 
       light_intensity = measured_light;
-      light_intensity_position = angle - 5;
+      light_intensity_position = angle;
 
-      angle = 120; // Measuring light intensity 5 degrees forward maximum 120.
+      angle = angle + 5; // Measuring light intensity at original degrees
       servoRotateToPosition(angle);
-      LL_mDelay(4000);
+      vd6283tx_init();
+	  measured_light = vd6283tx_get_als_ch2();
 
       if (light_intensity < measured_light)
       {
         light_intensity = measured_light;
-        light_intensity_position = 120;
+        light_intensity_position = angle;
       }
-
-      return light_intensity_position;
-    }
-    else // Condition for engine to be able to move in between 0 - 120 degrees.
-    {
-      angle = angle - 5; // Measuring light intensity 5 degrees back.
-      servoRotateToPosition(angle);
-      LL_mDelay(2000);
-
-      light_intensity = measured_light;
-      light_intensity_position = angle - 5;
 
       angle = angle + 5; // Measuring light intensity 5 degrees forward.
       servoRotateToPosition(angle);
-      LL_mDelay(4000);
+	  vd6283tx_init();
+	  measured_light = vd6283tx_get_als_ch2();
 
-      if (light_intensity < measured_light)
-      {
-        light_intensity = measured_light;
-        light_intensity_position = angle + 5;
-      }
+	  if (light_intensity < measured_light)
+	  {
+		  light_intensity = measured_light;
+		  light_intensity_position = angle;
+	  }
 
       return light_intensity_position;
     }
@@ -276,15 +284,14 @@ uint8_t Light_Scanner(uint8_t mode_of_scanning, uint8_t engine_position)
     return angle;
   }
 }
-*/
 
 /**
  * @brief Takes the requested angle value, and rotates the servo motor to the desired rotation. 
  * If the angle is below 0 then we rotate the servo motor to the 0 degre position. If the angle is 
- * above 120 degree, then  we set the servo motor rotation position to 120 degree, else the angle 
- * value will be multiplied by 5.9 and we will add 400 to the final value.
- * We received the multiplier value from this equation (1100/390)/servo motor macimum angle reach.
- * we add 400 to the final value, because the servo motor starts rotate from pulse value 400.
+ * above 180 degree, then  we set the servo motor rotation position to 180 degree, else the angle
+ * value will be multiplied by 5.5555 and we will add 180 to the final value.
+ * We received the multiplier value from this equation ((1180-180)/180)/servo motor macimum angle reach.
+ * we add 180 to the final value, because the servo motor starts rotate from pulse value 180.
  * 
  * @param angle The requested angle in degrees.
  */
@@ -292,19 +299,19 @@ void servoRotateToPosition(int angle)
 {
   if (angle < 0)
   {
-    __HAL_TIM_SET_COMPARE(&htim2, TIM_CHANNEL_1, 400);
+    __HAL_TIM_SET_COMPARE(&htim2, TIM_CHANNEL_1, 180);
   }
   else if (angle == 0)
   {
-    __HAL_TIM_SET_COMPARE(&htim2, TIM_CHANNEL_1, 400); // 0deg
+    __HAL_TIM_SET_COMPARE(&htim2, TIM_CHANNEL_1, 180); // 0deg
   }
-  else if (angle > 0 && angle <= 120)
+  else if (angle > 0 && angle <= 180)
   {
-    __HAL_TIM_SET_COMPARE(&htim2, TIM_CHANNEL_1, angle * 5.9 + 400);
+    __HAL_TIM_SET_COMPARE(&htim2, TIM_CHANNEL_1, angle * 5.5555 + 180);
   }
   else
   {
-    __HAL_TIM_SET_COMPARE(&htim2, TIM_CHANNEL_1, 1050);
+    __HAL_TIM_SET_COMPARE(&htim2, TIM_CHANNEL_1, 1180);
   }
 }
 
