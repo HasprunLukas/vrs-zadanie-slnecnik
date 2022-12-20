@@ -278,6 +278,16 @@ uint8_t Light_Scanner(uint8_t mode_of_scanning, uint8_t engine_position)
 }
 */
 
+/**
+ * @brief Takes the requested angle value, and rotates the servo motor to the desired rotation. 
+ * If the angle is below 0 then we rotate the servo motor to the 0 degre position. If the angle is 
+ * above 120 degree, then  we set the servo motor rotation position to 120 degree, else the angle 
+ * value will be multiplied by 5.9 and we will add 400 to the final value.
+ * We received the multiplier value from this equation (1100/390)/servo motor macimum angle reach.
+ * we add 400 to the final value, because the servo motor starts rotate from pulse value 400.
+ * 
+ * @param angle The requested angle in degrees.
+ */
 void servoRotateToPosition(int angle)
 {
   if (angle < 0)
