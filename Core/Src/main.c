@@ -107,7 +107,6 @@ int main(void)
   /* USER CODE BEGIN WHILE */
   while (1)
   {
-
     EnginePosition = Light_Scanner(Mode, EnginePosition); // Obtaining position for engine to be move to.
     servoRotateToPosition(EnginePosition); // Setting engine to required position.
     Mode = 2; // Changing mode to 2 after initial global measuring.
@@ -179,7 +178,6 @@ uint8_t Light_Scanner(uint8_t mode_of_scanning, uint8_t engine_position)
   if (mode_of_scanning == 1)
   {
     angle = 0;
-
     for (int degree = 0; degree <= 180; degree = degree + 5)
     {
       servoRotateToPosition(degree);
@@ -281,7 +279,7 @@ uint8_t Light_Scanner(uint8_t mode_of_scanning, uint8_t engine_position)
   }
   else // If parameter mode_of_scanning haven't accepted values 1 or 2 position of engine stay unchanged.
   {
-    return angle;
+    return engine_position;
   }
 }
 

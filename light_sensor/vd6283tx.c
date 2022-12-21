@@ -42,8 +42,49 @@ uint8_t vd6283tx_init(void)
 	LL_mDelay(10);
 	vd6283tx_ctrl_reg_init(0x07, 0x01);
 	LL_mDelay(10);
+	vd6283tx_set_gpio1();
+	LL_mDelay(10);
+	vd6283tx_sda_config();
+	LL_mDelay(10);
+	vd6283tx_als_channel_enable();
+	LL_mDelay(10);
+	vd6283tx_als_channel6_enable;
+	LL_mDelay(10);
 
 	return status;
+}
+
+void vd6283tx_set_gpio1(void)
+{
+	volatile uint8_t config = vd6283tx_read_byte(VD6283TX_GPIO1_DRV_CFG);
+	config &= ~0x02;
+	config |= 0x01;
+	vd6283tx_write_byte(VD6283TX_GPIO1_DRV_CFG,config);
+}
+
+void vd6283tx_sda_config(void)
+{
+	volatile uint8_t config = vd6283tx_read_byte(VD6283TX_SDA_DRV_CFG);
+	config &= ~0x0F;
+	config |= 0x09;
+	vd6283tx_write_byte(VD6283TX_SDA_DRV_CFG,config);
+}
+
+void vd6283tx_als_channel_enable(void)
+{
+	volatile uint8_t als_enable = vd6283tx_read_byte(VD6283TX_ALS_CHANNEL_ENABLE);
+	als_enable &= ~0x1F;
+	als_enable |= 0x1F;
+	vd6283tx_write_byte(VD6283TX_ALS_CHANNEL_ENABLE,als_enable);
+}
+
+void vd6283tx_als_channel6_enable(void)
+{
+	volatile uint8_t als_enable = vd6283tx_read_byte(VD6283TX_ALS_CHANNEL6_ENABLE);
+	als_enable &= ~0x01;
+	als_enable |= 0x01;
+	LL_mDelay(100);
+	vd6283tx_write_byte(VD6283TX_ALS_CHANNEL6_ENABLE,als_enable);
 }
 
 int vd6283tx_get_als_ch2()
